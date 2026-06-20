@@ -1,0 +1,16 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "Olist Warehouse",
+      "Group": "Servers",
+      "Host": "postgres-warehouse",
+      "Port": 5432,
+      "MaintenanceDB": "olist_warehouse",
+      "Username": "postgres",
+      "SSLMode": "prefer",
+      "PassFile": "/tmp/pgpassfile",
+      "Favorite": true,
+      "Comment": "PostgreSQL Data Warehouse — monitoring + Silver/Gold metadata"
+    }
+  }
+}

@@ -1,0 +1,13 @@
+olist:
+  target: dev
+  outputs:
+    dev:
+      type: trino
+      method: none
+      user: trino
+      password: ""
+      host: trino
+      port: 8080
+      database: olist
+      schema: bronze
+      threads: 2

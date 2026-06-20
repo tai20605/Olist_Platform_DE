@@ -1,0 +1,37 @@
+version: 2
+
+models:
+  - name: dim_geography
+    description: "Bảng nhánh ngoài chứa thông tin chuẩn hóa địa lý toàn bộ hệ thống (zip_code, city, state, lat/lng)"
+
+  - name: dim_categories
+    description: "Bảng nhánh ngoài lưu trữ danh mục sản phẩm duy nhất (category_key)"
+
+  - name: dim_customers
+    description: >
+      Bảng chiều thông tin khách hàng chính. Đã deduplicated theo user_id,
+      chỉ giữ bản ghi mới nhất. Kết nối với dim_geography qua zip_code.
+
+  - name: dim_products
+    description: >
+      Bảng chiều thông tin sản phẩm. Kết nối với dim_categories qua category_key.
+
+  - name: dim_sellers
+    description: >
+      Bảng chiều thông tin nhà bán hàng. Kết nối với dim_geography qua zip_code.
+
+  - name: dim_reviews
+    description: "Bảng chiều lưu trữ đánh giá khách hàng theo từng đơn hàng"
+
+  - name: dim_order_attributes
+    description: "Bảng chiều lưu trữ các thuộc tính đơn hàng bổ sung"
+
+  - name: fct_orders
+    description: >
+      Bảng sự kiện trung tâm — Single Source of Truth cho toàn bộ chỉ số kinh doanh.
+      Columns chính:
+        - order_id, customer_unique_key, product_id, seller_id (Foreign Keys)
+        - item_merchandise_revenue, item_logistic_cost, gross_amount (Revenue Metrics)
+        - cash_flow_received, financing_installments (Payment Metrics)
+        - count_delayed_order (0=on-time, 1=delayed) (Logistics KPI)
+        - estimated_delivery_date, actual_delivery_date, order_timestamp (Timestamps)

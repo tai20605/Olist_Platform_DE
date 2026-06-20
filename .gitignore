@@ -1,0 +1,122 @@
+# ─── Environment & Secrets ───────────────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+*.key
+*.pem
+*.p12
+
+# ─── Python ──────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+parts/
+var/
+sdist/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+.installed.cfg
+lib/
+lib64/
+.venv/
+venv/
+ENV/
+env/
+.env/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+*.log
+nosetests.xml
+test-results/
+
+# ─── Airflow ─────────────────────────────────────────────────────────────────
+airflow/logs/
+airflow/plugins/
+# Giữ lại thư mục dags nhưng bỏ cache
+airflow/dags/__pycache__/
+
+# ─── dbt ─────────────────────────────────────────────────────────────────────
+dbt/target/
+dbt/dbt_packages/
+dbt/logs/
+dbt/.user.yml
+
+# ─── Spark ───────────────────────────────────────────────────────────────────
+spark/error.log
+spark/**/__pycache__/
+
+# ─── Docker ──────────────────────────────────────────────────────────────────
+docker-compose.override.yml
+docker-compose.local.yml
+
+# ─── Node.js / Frontend ──────────────────────────────────────────────────────
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+dist/
+.next/
+out/
+.nuxt/
+ecommerce/frontend/node_modules/
+ecommerce/frontend/dist/
+ecommerce/frontend/.next/
+
+# ─── Editor & IDE ────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ─── Jupyter Notebooks ───────────────────────────────────────────────────────
+.ipynb_checkpoints/
+
+# ─── OS ──────────────────────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# ─── Java / JAR (Spark deps) ─────────────────────────────────────────────────
+*.jar
+*.class
+
+# ─── Monitoring ──────────────────────────────────────────────────────────────
+monitoring/grafana/dashboards/*.json.bak
+
+# ─── Temp / Misc ─────────────────────────────────────────────────────────────
+*.tmp
+*.bak
+*.orig
+*.rej
+*.patch
+.cache/
+tmp/
+temp/
+
+# ─── data ─────────────────────────────────────────────────────────────
+data/events.jsonl

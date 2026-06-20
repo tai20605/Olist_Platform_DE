@@ -1,0 +1,22 @@
+select
+    event_id,
+    event_type,
+    timestamp,
+    user_id,
+    session_id,
+    order_id,
+    order_status,
+    payload_items,
+    payload_payments,
+    payload_review,
+    metadata_device,
+    metadata_os,
+    customer_id,
+    customer_city,
+    customer_state,
+    customer_zip_code,
+    customer_latitude,
+    customer_longitude,
+    estimated_delivery_date,
+    actual_delivery_date
+from olist.bronze.raw_events

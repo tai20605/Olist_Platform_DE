@@ -1,0 +1,249 @@
+version: 2
+
+# SILVER LAYER — DATA QUALITY GATE
+
+models:
+
+  
+  # STG_CUSTOMERS
+  - name: stg_customers
+    description: >
+      Bảng khách hàng đã chuẩn hóa và deduplicated (1 row per user_id).
+      Là nguồn duy nhất (Single Source of Truth) cho thông tin khách hàng.
+    columns:
+      - name: user_id
+        description: "PRIMARY KEY — ID duy nhất của khách hàng"
+        tests:
+          - unique:
+              severity: error   # ERROR: Trùng user_id → dim_customers sai hoàn toàn
+          - not_null:
+              severity: error   # ERROR: Null → không thể join với bất kỳ fact nào
+
+      - name: customer_id
+        description: "Customer reference ID từ hệ thống gốc"
+        tests:
+          - not_null:
+              severity: error   # ERROR: Null → fct_orders mất FK
+
+      - name: customer_city
+        description: "Tên thành phố — đã coalesce về 'unknown'"
+        tests:
+          - not_null:
+              severity: warn    # WARN: Đã coalesce nên null là lỗi logic, không ảnh hưởng metric
+
+      - name: customer_state
+        description: "Mã bang 2 ký tự viết hoa — đã coalesce về 'UN'"
+        tests:
+          - not_null:
+              severity: warn    # WARN: Dùng để geographic grouping, không phải revenue metric
+
+      - name: customer_zip_code
+        description: "Mã ZIP — bắt buộc để join với dim_geography"
+        tests:
+          - not_null:
+              severity: error   # ERROR: Null → join với dim_geography bị vỡ
+
+      - name: customer_latitude
+        description: "Vĩ độ — dùng cho map visualization, không phải KPI"
+        tests:
+          - not_null:
+              severity: warn    # WARN: Đã coalesce về 0.0, chỉ ảnh hưởng map view
+
+      - name: customer_longitude
+        description: "Kinh độ — dùng cho map visualization, không phải KPI"
+        tests:
+          - not_null:
+              severity: warn    # WARN: Đã coalesce về 0.0, chỉ ảnh hưởng map view
+
+  # STG_ORDER_ITEMS
+  - name: stg_order_items
+    description: >
+      Dữ liệu đơn hàng từ Kafka event order.created.
+      Chỉ chứa các đơn hàng có product_price > 0 và freight_value >= 0.
+    columns:
+      - name: order_id
+        description: "FK chính của fact table"
+        tests:
+          - not_null:
+              severity: error   # ERROR: Null → record vô nghĩa, không thể join
+
+      - name: user_id
+        description: "FK sang stg_customers / dim_customers"
+        tests:
+          - not_null:
+              severity: error   # ERROR: Null → mất liên kết customer, revenue bị sai
+
+      - name: product_id
+        description: "FK sang dim_products — bắt buộc"
+        tests:
+          - not_null:
+              severity: error   # ERROR: Null → dim_products vỡ, không thể phân tích sản phẩm
+
+      - name: product_category_name
+        description: "Tên danh mục — đã coalesce về 'unassigned'"
+        tests:
+          - not_null:
+              severity: warn    # WARN: Đã coalesce, null sau coalesce là lỗi logic nhẹ
+
+      - name: product_price
+        description: "Giá sản phẩm — CHỈ SỐ DOANH THU CỐT LÕI"
+        tests:
+          - not_null:
+              severity: error   # ERROR: Null → GMV sai
+          - dbt_utils.expression_is_true:
+              expression: "> 0"
+              severity: error   # ERROR: Giá âm hoặc bằng 0 → revenue tính sai nghiêm trọng
+
+      - name: freight_value
+        description: "Chi phí vận chuyển — chỉ số logistics cost"
+        tests:
+          - not_null:
+              severity: error   # ERROR: Null → gross_amount sai
+          - dbt_utils.expression_is_true:
+              expression: ">= 0"
+              severity: error   # ERROR: Freight âm → logistics cost metric không đáng tin
+
+      - name: seller_id
+        description: "FK sang dim_sellers — bắt buộc cho seller performance"
+        tests:
+          - not_null:
+              severity: error   # ERROR: Null → không thể phân tích seller, fct_orders mất FK
+
+      - name: seller_city
+        description: "Thành phố nhà bán hàng — mô tả địa lý"
+        tests:
+          - not_null:
+              severity: warn    # WARN: Chỉ dùng để geographic drill-down, không phải metric
+
+      - name: seller_state
+        description: "Mã bang nhà bán hàng — geographic grouping"
+        tests:
+          - not_null:
+              severity: warn    # WARN: Chỉ dùng để lọc/nhóm theo vùng
+
+      - name: total_item_cost
+        description: "product_price + freight_value — chỉ số gross amount"
+        tests:
+          - not_null:
+              severity: error   # ERROR: Null → gross_amount trong fct_orders bị sai
+          - dbt_utils.expression_is_true:
+              expression: "> 0"
+              severity: error   # ERROR: Tổng chi phí <= 0 là vô lý
+
+      - name: created_at
+        description: "Timestamp đơn hàng — BẮT BUỘC cho time-series analysis"
+        tests:
+          - not_null:
+              severity: error   # ERROR: Null → mọi phân tích theo thời gian bị vô nghĩa
+
+  # STG_ORDER_PAYMENTS
+  - name: stg_order_payments
+    description: >
+      Dữ liệu thanh toán từ Kafka payment.processed events.
+      Chỉ chứa giao dịch có payment_value > 0.
+    columns:
+      - name: order_id
+        description: "FK liên kết với stg_order_items"
+        tests:
+          - not_null:
+              severity: error   # ERROR: Null → không thể join vào fact table
+
+      - name: payment_type
+        description: "Loại hình thanh toán"
+        tests:
+          - not_null:
+              severity: error   # ERROR: Null → cash_flow không phân loại được
+          - accepted_values:
+              values: ['credit_card', 'debit_card', 'boleto', 'voucher', 'not_defined']
+              severity: warn    # WARN: Hệ thống có thể thêm loại mới → cảnh báo team biết để cập nhật whitelist
+
+      - name: payment_installments
+        description: "Số kỳ trả góp — default 1"
+        tests:
+          - not_null:
+              severity: error   # ERROR: Null → financing_installments metric sai
+          - dbt_utils.expression_is_true:
+              expression: ">= 1"
+              severity: warn    # WARN: Lỗi logic nhẹ (default đã là 1), không ảnh hưởng revenue
+
+      - name: payment_value
+        description: "Giá trị giao dịch — CHỈ SỐ CASH FLOW CỐT LÕI"
+        tests:
+          - not_null:
+              severity: error   # ERROR: Null → cash_flow_received sai
+          - dbt_utils.expression_is_true:
+              expression: "> 0"
+              severity: error   # ERROR: Giao dịch <= 0 là không hợp lệ tuyệt đối
+
+      - name: approved_at
+        description: "Timestamp duyệt thanh toán — phân tích thời gian xử lý"
+        tests:
+          - not_null:
+              severity: warn    # WARN: Dùng để phân tích payment latency, không phải KPI chính
+
+  # STG_ORDER_STATUS_HISTORY
+  - name: stg_order_status_history
+    description: >
+      Lịch sử trạng thái đơn hàng theo timeline từ Kafka events.
+    columns:
+      - name: order_id
+        description: "FK đơn hàng — bắt buộc"
+        tests:
+          - not_null:
+              severity: error   # ERROR: Null → không thể tính delivery KPI
+
+      - name: order_status
+        description: "Trạng thái đơn hàng"
+        tests:
+          - not_null:
+              severity: error   # ERROR: Null → count_delayed_order không tính được
+          - accepted_values:
+              values:
+                - 'created'
+                - 'approved'
+                - 'processing'
+                - 'shipped'
+                - 'delivered'
+                - 'cancelled'
+                - 'unavailable'
+                - 'invoiced'
+              severity: warn    # WARN: Hệ thống có thể thêm status mới → cảnh báo để team cập nhật
+
+      - name: status_updated_at
+        description: "Timestamp cập nhật trạng thái — dùng để tính delivery time"
+        tests:
+          - not_null:
+              severity: error   # ERROR: Null → không thể tính actual_delivery_date → delay KPI sai
+
+  # STG_ORDER_REVIEWS
+  - name: stg_order_reviews
+    description: >
+      Đánh giá của khách hàng. Chỉ chứa review_score từ 1 đến 5.
+    columns:
+      - name: order_id
+        description: "FK đơn hàng"
+        tests:
+          - not_null:
+              severity: error   # ERROR: Null → review không liên kết được với đơn hàng
+
+      - name: review_id
+        description: "ID review — identifier phụ, không dùng trong metric"
+        tests:
+          - not_null:
+              severity: warn    # WARN: review_id không xuất hiện trong bất kỳ chỉ số nào
+
+      - name: review_score
+        description: "Điểm đánh giá 1–5 — chỉ số customer satisfaction"
+        tests:
+          - not_null:
+              severity: error   # ERROR: Null → avg_review_score metric bị sai
+          - accepted_values:
+              values: [1, 2, 3, 4, 5]
+              quote: false
+              severity: error   # ERROR: Score ngoài 1-5 → NPS/CSAT metric không đáng tin
+
+      - name: reviewed_at
+        description: "Timestamp đánh giá — phân tích thời điểm review"
+        tests:
+          - not_null:
+              severity: warn    # WARN: Chỉ dùng để time-based review analysis, không phải KPI cốt lõi

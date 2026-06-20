@@ -1,0 +1,37 @@
+apiVersion: 1
+
+datasources:
+  # ─── Business BI Dashboard datasource (VietShop legacy) ───
+  - name: VietShop PostgreSQL
+    uid: DS_VIETSHOP_POSTGRESQL
+    type: postgres
+    access: proxy
+    url: postgres-source:5432
+    database: vietshop
+    user: postgres
+    secureJsonData:
+      password: postgres
+    jsonData:
+      sslmode: disable
+      postgresVersion: 1500
+      timescaledb: false
+    isDefault: false
+    editable: true
+
+  # ─── Olist Data Warehouse (Business + Monitoring) ─────────
+  - name: Olist Warehouse
+    uid: DS_OLIST_WAREHOUSE
+    type: postgres
+    access: proxy
+    url: postgres-warehouse:5432
+    database: olist_warehouse
+    user: postgres
+    secureJsonData:
+      password: postgres_password
+    jsonData:
+      sslmode: disable
+      postgresVersion: 1500
+      timescaledb: false
+      # Cho phép query cả dashboard và monitoring schema
+    isDefault: true
+    editable: true
