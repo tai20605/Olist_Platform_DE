@@ -23,8 +23,7 @@ Olist E-Commerce Data Platform simulates a production-grade data engineering sys
 
 ## Architecture Diagram
 
-<img width="1831" height="737" alt="architecture" src="https://github.com/user-attachments/assets/77cec943-89a3-448d-8b28-0667a2f9b423" />
-
+<img width="1841" height="917" alt="architecture" src="https://github.com/user-attachments/assets/76cc7220-f477-4ada-91e9-abd93693d380" />
 
 ---
 
@@ -103,6 +102,7 @@ This runs the full Bronze → Silver → Gold → PostgreSQL pipeline.
 ### 5. View dashboards
 
 Open Grafana at `http://localhost:3000` to see monitoring dashboards.
+
 <img width="1852" height="1077" alt="dashboard" src="https://github.com/user-attachments/assets/3fa23c41-f2f2-487c-9590-17e1ed56a0ee" />
 
 ---
