@@ -1,38 +1,42 @@
 import sys
+import urllib.request
+import json
+import time
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, from_json
-from pyspark.sql.types import StructType, StructField, StringType
+from pyspark.sql.functions import col, expr
+from pyspark.sql.avro.functions import from_avro
 
 KAFKA_BROKERS = "kafka:29092"
 TOPIC_NAME = "olist-events"
 BRONZE_TABLE = "olist.bronze.raw_events"
 CHECKPOINT_LOCATION = "s3a://olist/checkpoints/raw_events"
+SCHEMA_REGISTRY_URL = "http://schema-registry:8081"
 
-RAW_EVENT_SCHEMA = StructType([
-    StructField("event_id", StringType(), True),
-    StructField("event_type", StringType(), True),
-    StructField("timestamp", StringType(), True),
-    StructField("user_id", StringType(), True),
-    StructField("session_id", StringType(), True),
-    StructField("order_id", StringType(), True),
-    StructField("order_status", StringType(), True),
-    StructField("payload_items", StringType(), True),
-    StructField("payload_payments", StringType(), True),
-    StructField("payload_review", StringType(), True),
-    StructField("metadata_device", StringType(), True),
-    StructField("metadata_os", StringType(), True),
-    StructField("customer_id", StringType(), True),
-    StructField("customer_zip_code", StringType(), True),
-    StructField("customer_city", StringType(), True),
-    StructField("customer_state", StringType(), True),
-    StructField("customer_latitude", StringType(), True),
-    StructField("customer_longitude", StringType(), True),
-    StructField("estimated_delivery_date", StringType(), True),
-    StructField("actual_delivery_date", StringType(), True)
-])
+
+def fetch_latest_schema(schema_registry_url, topic):
+    """Fetches the latest Avro schema string from Schema Registry using standard urllib."""
+    url = f"{schema_registry_url}/subjects/{topic}-value/versions/latest"
+    # We should retry as Schema Registry might start slightly after Kafka and Spark
+    for attempt in range(15):
+        try:
+            req = urllib.request.Request(url)
+            with urllib.request.urlopen(req, timeout=5) as response:
+                if response.status == 200:
+                    data = json.loads(response.read().decode("utf-8"))
+                    print(f"Fetched latest schema from registry (ID: {data['id']})")
+                    return data["schema"]
+        except Exception as e:
+            print(f"Schema Registry not ready yet. Retrying in 3s... ({e})")
+            time.sleep(3)
+    print("Could not fetch schema from Schema Registry. Exiting.")
+    sys.exit(1)
+
 
 if __name__ == "__main__":
     spark = SparkSession.builder.appName("Kafka_To_Bronze_Ingestion").getOrCreate()
+
+    # Fetch schema dynamically
+    schema_json_str = fetch_latest_schema(SCHEMA_REGISTRY_URL, TOPIC_NAME)
 
     kafka_stream = (
         spark.readStream
@@ -46,8 +50,12 @@ if __name__ == "__main__":
 
     parsed_stream = (
         kafka_stream
-        .selectExpr("CAST(value AS STRING) as json_string")
-        .select(from_json(col("json_string"), RAW_EVENT_SCHEMA).alias("data"))
+        .select(
+            from_avro(
+                expr("substring(value, 6)"),
+                schema_json_str
+            ).alias("data")
+        )
         .select("data.*")
     )
 

@@ -124,8 +124,10 @@ services:
     depends_on:
       kafka:
         condition: service_started
+      schema-registry:
+        condition: service_started
     command: >
-      sh -c " pip install --no-cache-dir kafka-python && echo 'Starting Olist Event Simulation from data/events.jsonl...' && python simulation_produce_event.py "
+      sh -c " pip install --no-cache-dir kafka-python requests fastavro && echo 'Starting Olist Event Simulation from data/events.jsonl...' && python simulation_produce_event.py "
     restart: unless-stopped
 
   # ─── Nessie Catalog ────────────────────────────
@@ -281,6 +283,21 @@ services:
       - kafka
     restart: unless-stopped
 
+  schema-registry:
+    image: confluentinc/cp-schema-registry:7.5.0
+    container_name: schema-registry
+    networks:
+      - olist-network
+    ports:
+      - "8089:8081"
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: kafka:29092
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+    depends_on:
+      - kafka
+    restart: unless-stopped
+
   # ─── MinIO Object Storage ──────────────────────
   minio:
     image: minio/minio:latest
@@ -394,6 +411,8 @@ services:
       spark-iceberg-init:
         condition: service_completed_successfully
       kafka:
+        condition: service_started
+      schema-registry:
         condition: service_started
     volumes:
       - ./spark:/opt/spark/work
