@@ -26,7 +26,7 @@ def fetch_latest_schema(schema_registry_url, topic):
                     print(f"Fetched latest schema from registry (ID: {data['id']})")
                     return data["schema"]
         except Exception as e:
-            print(f"Schema Registry not ready yet. Retrying in 3s... ({e})")
+            print(f"Schema Registry not ready yet. Retrying in 3s...({e})")
             time.sleep(3)
     print("Could not fetch schema from Schema Registry. Exiting.")
     sys.exit(1)
@@ -44,7 +44,6 @@ if __name__ == "__main__":
         .option("kafka.bootstrap.servers", KAFKA_BROKERS)
         .option("subscribe", TOPIC_NAME)
         .option("startingOffsets", "earliest")
-        .option("failOnDataLoss", "false")
         .load()
     )
 
