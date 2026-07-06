@@ -1,10 +1,27 @@
+import os
 import sys
+import logging
 from pyspark.sql import SparkSession
 
-JDBC_URL = "jdbc:postgresql://postgres-warehouse:5432/olist_warehouse"
+# Configure structured logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
+    handlers=[logging.StreamHandler(sys.stdout)]
+)
+logger = logging.getLogger("ExportGoldToPostgres")
+
+# Fetch connection parameters from environment variables
+db_host = os.environ.get("WAREHOUSE_PG_HOST", "postgres-warehouse")
+db_port = os.environ.get("WAREHOUSE_PG_PORT", "5432")
+db_name = os.environ.get("WAREHOUSE_PG_DB", "olist_warehouse")
+db_user = os.environ.get("WAREHOUSE_PG_USER", "postgres")
+db_password = os.environ.get("WAREHOUSE_PG_PASSWORD", "postgres_password")
+
+JDBC_URL = f"jdbc:postgresql://{db_host}:{db_port}/{db_name}"
 JDBC_PROPS = {
-    "user":     "postgres",
-    "password": "postgres_password",
+    "user":     db_user,
+    "password": db_password,
     "driver":   "org.postgresql.Driver",
 }
 
@@ -23,11 +40,14 @@ GOLD_TABLES = [
 if __name__ == "__main__":
     spark = SparkSession.builder \
         .appName("Export_Gold_To_Postgres_Warehouse") \
+        .config("spark.sql.shuffle.partitions", "4") \
+        .config("spark.sql.iceberg.vectorization.enabled", "false") \
+        .config("spark.sql.parquet.enableVectorizedReader", "false") \
         .getOrCreate()
 
-    print("=" * 60)
-    print("  Exporting Gold layer → Postgres dw schema")
-    print("=" * 60)
+    logger.info("============================================================")
+    logger.info("  Exporting Gold layer -> Postgres dw schema")
+    logger.info("============================================================")
 
     failed = []
     for table in GOLD_TABLES:
@@ -37,15 +57,15 @@ if __name__ == "__main__":
             df = spark.read.table(source)
             row_count = df.count()
             df.write.jdbc(url=JDBC_URL, table=target, mode="overwrite", properties=JDBC_PROPS)
-            print(f"  OK  {source} -> {target}  ({row_count:,} rows)")
+            logger.info(f"  OK   {source} -> {target}  ({row_count:,} rows)")
         except Exception as e:
-            print(f"  FAIL  {table}: {e}")
+            logger.error(f"  FAIL {table}: {e}", exc_info=True)
             failed.append(table)
 
     spark.stop()
 
     if failed:
-        print(f"\nFailed tables: {failed}")
+        logger.error(f"Failed tables: {failed}")
         sys.exit(1)
 
-    print("\nAll Gold tables exported successfully.")
+    logger.info("All Gold tables exported successfully.")

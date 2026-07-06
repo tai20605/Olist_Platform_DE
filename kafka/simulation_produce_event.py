@@ -104,7 +104,10 @@ def serialize_avro(event, parsed_schema, schema_id):
     for field in AVRO_SCHEMA["fields"]:
         name = field["name"]
         val = event.get(name)
-        record[name] = str(val) if val is not None else None
+        if isinstance(val, (dict, list)):
+            record[name] = json.dumps(val)
+        else:
+            record[name] = str(val) if val is not None else None
 
     fo = io.BytesIO()
     fo.write(struct.pack(">bI", 0, schema_id))
