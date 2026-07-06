@@ -19,3 +19,7 @@ RUN pip install --no-cache-dir --user \
     "apache-airflow-providers-apache-kafka" \
     "apache-airflow-providers-postgres" \
     --constraint "${CONSTRAINT_URL}"
+
+RUN pip install --no-cache-dir --user \
+    "dbt-core==1.8.5" \
+    "dbt-trino==1.8.5"

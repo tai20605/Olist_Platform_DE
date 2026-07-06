@@ -113,7 +113,9 @@ services:
 
   # ─── Realtime Mock Event Producer ────────────────
   mock-producer:
-    image: python:3.10-slim
+    build:
+      context: .
+      dockerfile: ./kafka/Dockerfile
     container_name: mock-producer
     networks:
       - olist-network
@@ -126,9 +128,7 @@ services:
         condition: service_started
       schema-registry:
         condition: service_started
-    command: >
-      sh -c " pip install --no-cache-dir kafka-python requests fastavro && echo 'Starting Olist Event Simulation from data/events.jsonl...' && python simulation_produce_event.py "
-    restart: unless-stopped
+    restart: "no"
 
   # ─── Nessie Catalog ────────────────────────────
   nessie:
