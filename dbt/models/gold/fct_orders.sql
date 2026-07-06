@@ -43,8 +43,8 @@ select
     d.actual_delivery_date,
     case 
         when d.actual_delivery_date is null then null
-        when d.actual_delivery_date > cast(d.estimated_delivery_date as timestamp) then '1'
-        else '0'
+        when d.actual_delivery_date > cast(d.estimated_delivery_date as timestamp) then 1
+        else 0
     end as count_delayed_order,                             
     
     -- 4. TIMESTAMPS

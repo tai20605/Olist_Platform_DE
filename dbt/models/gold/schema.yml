@@ -3,35 +3,135 @@ version: 2
 models:
   - name: dim_geography
     description: "Bảng nhánh ngoài chứa thông tin chuẩn hóa địa lý toàn bộ hệ thống (zip_code, city, state, lat/lng)"
+    columns:
+      - name: customer_zip_code
+        description: "Primary key - Mã ZIP code địa lý"
+        tests:
+          - unique:
+              severity: error
+          - not_null:
+              severity: error
 
   - name: dim_categories
     description: "Bảng nhánh ngoài lưu trữ danh mục sản phẩm duy nhất (category_key)"
+    columns:
+      - name: category_key
+        description: "Primary key - MD5 hash của tên danh mục"
+        tests:
+          - unique:
+              severity: error
+          - not_null:
+              severity: error
 
   - name: dim_customers
     description: >
       Bảng chiều thông tin khách hàng chính. Đã deduplicated theo user_id,
       chỉ giữ bản ghi mới nhất. Kết nối với dim_geography qua zip_code.
+    columns:
+      - name: user_id
+        description: "Primary key - ID duy nhất của khách hàng"
+        tests:
+          - unique:
+              severity: error
+          - not_null:
+              severity: error
 
   - name: dim_products
     description: >
       Bảng chiều thông tin sản phẩm. Kết nối với dim_categories qua category_key.
+    columns:
+      - name: product_id
+        description: "Primary key - ID duy nhất của sản phẩm"
+        tests:
+          - unique:
+              severity: error
+          - not_null:
+              severity: error
+      - name: category_key
+        description: "Foreign key liên kết với dim_categories"
+        tests:
+          - not_null:
+              severity: warn
+          - relationships:
+              to: ref('dim_categories')
+              field: category_key
+              severity: warn
 
   - name: dim_sellers
     description: >
       Bảng chiều thông tin nhà bán hàng. Kết nối với dim_geography qua zip_code.
+    columns:
+      - name: seller_id
+        description: "Primary key - ID duy nhất của nhà bán hàng"
+        tests:
+          - unique:
+              severity: error
+          - not_null:
+              severity: error
 
   - name: dim_reviews
     description: "Bảng chiều lưu trữ đánh giá khách hàng theo từng đơn hàng"
+    columns:
+      - name: review_id
+        description: "Primary key - ID duy nhất của review"
+        tests:
+          - not_null:
+              severity: error
 
   - name: dim_order_attributes
     description: "Bảng chiều lưu trữ các thuộc tính đơn hàng bổ sung"
+    columns:
+      - name: order_id
+        description: "Primary key - ID duy nhất của đơn hàng"
+        tests:
+          - unique:
+              severity: error
+          - not_null:
+              severity: error
 
   - name: fct_orders
     description: >
       Bảng sự kiện trung tâm — Single Source of Truth cho toàn bộ chỉ số kinh doanh.
-      Columns chính:
-        - order_id, customer_unique_key, product_id, seller_id (Foreign Keys)
-        - item_merchandise_revenue, item_logistic_cost, gross_amount (Revenue Metrics)
-        - cash_flow_received, financing_installments (Payment Metrics)
-        - count_delayed_order (0=on-time, 1=delayed) (Logistics KPI)
-        - estimated_delivery_date, actual_delivery_date, order_timestamp (Timestamps)
+    columns:
+      - name: order_id
+        description: "ID đơn hàng (Hạt nhân của bảng Fact)"
+        tests:
+          - not_null:
+              severity: error
+
+      - name: customer_unique_key
+        description: "Foreign key liên kết với dim_customers"
+        tests:
+          - not_null:
+              severity: error
+          - relationships:
+              to: ref('dim_customers')
+              field: user_id
+              severity: error
+
+      - name: product_id
+        description: "Foreign key liên kết với dim_products"
+        tests:
+          - not_null:
+              severity: error
+          - relationships:
+              to: ref('dim_products')
+              field: product_id
+              severity: error
+
+      - name: seller_id
+        description: "Foreign key liên kết với dim_sellers"
+        tests:
+          - not_null:
+              severity: error
+          - relationships:
+              to: ref('dim_sellers')
+              field: seller_id
+              severity: error
+
+      - name: count_delayed_order
+        description: "KPI Đơn hàng giao trễ (0 = Đúng hạn, 1 = Trễ hạn)"
+        tests:
+          - accepted_values:
+              values: [0, 1]
+              severity: warn
